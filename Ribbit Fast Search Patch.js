@@ -1,6 +1,6 @@
 /*
  * RIBBIT Fast Search English Patch
- * Version: 3.0
+ * Version: 3.1
  * Updated: 2026-09-16
  */
 
@@ -35,8 +35,11 @@
 
     const replacements = {
       'フィールドを検索': 'Search Fields',
+      '表示件数': 'Items per page',
       '取得': 'Search',
-      'クリア': 'Clear'
+      'クリア': 'Clear',
+      'このフィールドはルックアップフィールドのコピー先に設定されているため、編集できません':
+        'This field cannot be edited because it is configured as a destination field for a Lookup.'
     };
 
 
@@ -250,6 +253,47 @@
 
 
       if (!label) {
+        return;
+      }
+
+
+
+      /*
+       * Add New Record
+       *
+       * 新規レコード追加
+       */
+
+      if (label === '新規レコード追加') {
+
+        element.setAttribute(
+          'aria-label',
+          'Add New Record'
+        );
+
+        return;
+      }
+
+
+
+      /*
+       * Lookup destination field warning
+       */
+
+      if (
+        label.includes(
+          'このフィールドはルックアップフィールドのコピー先に設定されているため、編集できません'
+        )
+      ) {
+
+        element.setAttribute(
+          'aria-label',
+          label.replace(
+            'このフィールドはルックアップフィールドのコピー先に設定されているため、編集できません',
+            'This field cannot be edited because it is configured as a destination field for a Lookup.'
+          )
+        );
+
         return;
       }
 
