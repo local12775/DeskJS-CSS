@@ -1,6 +1,6 @@
 /*
  * KW Read Check English Patch
- * Version: 1.0
+ * Version: 1.1
  * Updated: 2026-09-16
  *
  * KIZUNA Works - Read Check for kintone
@@ -26,8 +26,8 @@
 
     if (tab) {
 
-      // Visible text
       [...tab.childNodes].forEach((node) => {
+
         if (
           node.nodeType === Node.TEXT_NODE &&
           node.nodeValue.trim() === '既読'
@@ -37,9 +37,9 @@
             'Read'
           );
         }
+
       });
 
-      // Tooltip/title
       if (tab.getAttribute('title') === '既読') {
         tab.setAttribute('title', 'Read');
       }
@@ -50,9 +50,8 @@
      * ==========================================================
      * 2. NUMBER OF PEOPLE WHO READ THE RECORD
      *
-     * 既読 1 名  -> Read by 1 person
-     * 既読 2 名  -> Read by 2 people
-     * 既読 15 名 -> Read by 15 people
+     * 既読 1 名 -> Read by 1 person
+     * 既読 2 名 -> Read by 2 people
      * ==========================================================
      */
 
@@ -86,13 +85,21 @@
 
     /*
      * ==========================================================
-     * 3. FIRST READ DATE/TIME
+     * 3. READER INFORMATION LINES
+     *
+     * Handles:
      *
      * 初回 2026/09/16 17:09
      *
-     * becomes:
+     * 最終 2026/09/16 17:17
      *
-     * First read: 2026/09/16 17:09
+     * AND the combined form:
+     *
+     * 最終 2026/09/16 17:17既読 3 回
+     *
+     * OR after a previous translation:
+     *
+     * Last read: 2026/09/16 17:17既読 3 回
      * ==========================================================
      */
 
@@ -100,50 +107,74 @@
       '.kw-rdck-reader-line'
     ).forEach((element) => {
 
-      const text = element.textContent.trim();
+      let text = element.textContent.trim();
+
+
+      /*
+       * First read
+       */
 
       if (text.startsWith('初回')) {
 
-        element.textContent = text.replace(
+        text = text.replace(
           /^初回\s*/,
           'First read: '
         );
 
-        return;
       }
 
 
       /*
-       * ========================================================
-       * 4. LAST READ DATE/TIME
-       *
-       * 最終 2026/09/16 17:09
-       *
-       * becomes:
-       *
-       * Last read: 2026/09/16 17:09
-       * ========================================================
+       * Last read
        */
 
       if (text.startsWith('最終')) {
 
-        element.textContent = text.replace(
+        text = text.replace(
           /^最終\s*/,
           'Last read: '
         );
 
       }
 
+
+      /*
+       * Read count contained inside reader line
+       *
+       * 既読 1 回 -> Read 1 time
+       * 既読 3 回 -> Read 3 times
+       */
+
+      text = text.replace(
+        /既読\s*([\d,]+)\s*回/g,
+        (match, displayedCount) => {
+
+          const count = Number(
+            displayedCount.replace(/,/g, '')
+          );
+
+          return count === 1
+            ? ` Read ${displayedCount} time`
+            : ` Read ${displayedCount} times`;
+
+        }
+      );
+
+
+      element.textContent = text;
+
     });
 
 
     /*
      * ==========================================================
-     * 5. INDIVIDUAL READ COUNT
+     * 4. SEPARATE READ COUNT
      *
-     * 既読 1 回  -> Read 1 time
-     * 既読 2 回  -> Read 2 times
-     * 既読 10 回 -> Read 10 times
+     * Kept for compatibility in case another plugin state
+     * renders the count as its own element.
+     *
+     * 既読 1 回 -> Read 1 time
+     * 既読 2 回 -> Read 2 times
      * ==========================================================
      */
 
@@ -181,10 +212,6 @@
    * ============================================================
    * MUTATION OBSERVER
    * ============================================================
-   *
-   * Read Check dynamically creates/updates its sidebar.
-   * Re-run the translator when the DOM changes.
-   * ============================================================
    */
 
   let translationScheduled = false;
@@ -212,13 +239,16 @@
     document.body,
     {
       childList: true,
-      subtree: true
+      subtree: true,
+      characterData: true
     }
   );
 
 
   /*
-   * Initial translation
+   * ============================================================
+   * INITIAL TRANSLATION
+   * ============================================================
    */
 
   translateReadCheck();
