@@ -1,3 +1,9 @@
+/*
+ * RIBBIT Fast Search English Patch
+ * Version: 3.0
+ * Updated: 2026-09-16
+ */
+
 (function () {
   'use strict';
 
