@@ -1,7 +1,7 @@
 /*
  * ============================================================
  * kw-pdf-edit English Patch
- * Version: 1.2
+ * Version: 1.3
  * Updated: 2026-09-26
  * ============================================================
  *
@@ -17,7 +17,7 @@
   'use strict';
 
   const PATCH_NAME = 'kw-pdf-edit English Patch';
-  const PATCH_VERSION = '1.2';
+  const PATCH_VERSION = '1.3';
 
   const translations = {
     // File controls
@@ -885,29 +885,23 @@
       setInterval(
         function () {
 
-          let hasKwpe = false;
+          /*
+           * v1.3 mobile enforcement sweep.
+           *
+           * The Android Kintone WebView can rebuild kw-pdf-edit
+           * controls between MutationObserver passes. Testing
+           * confirmed that a 250 ms recurring pass reliably wins
+           * that race. Do not require a kwpe-* pre-check here; the
+           * element can disappear/reappear during the plugin's
+           * rebuild cycle. fullScan() still uses the normal v1.2
+           * translation scoping, so unrelated Kintone content is
+           * not broadly translated.
+           */
 
-
-          try {
-
-            hasKwpe =
-              !!document.querySelector(
-                '[class*="kwpe-"]'
-              );
-
-          } catch (e) {
-
-            hasKwpe = false;
-          }
-
-
-          if (hasKwpe) {
-
-            fullScan();
-          }
+          fullScan();
 
         },
-        750
+        250
       );
   }
 
