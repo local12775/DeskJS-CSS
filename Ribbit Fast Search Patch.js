@@ -43,7 +43,7 @@
       'レコードを新規追加': 'Add New Record',
       '編集画面を読み込んでいます...': 'Loading edit screen...',
       '一覧に戻る': 'Back to List',
-      '一覧に戻る »': 'Back to List »',
+      '一覧:': 'List:',
       'このフィールドはルックアップフィールドのコピー先に設定されているため、編集できません':
         'This field cannot be edited because it is configured as a destination field for a Lookup.'
     };
