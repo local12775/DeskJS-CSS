@@ -1,0 +1,393 @@
+from pathlib import Path
+
+out = Path("/mnt/data/KW Mail Assist English Patch v1.0.js")
+
+js = r"""/*
+ * KW Mail Assist English Patch
+ * Version 1.0
+ * Built from live UI captures of KW Mail Assist v1.6.1
+ * Desktop / Kintone configuration + runtime UI
+ *
+ * This patch translates captured Japanese UI without modifying the plugin.
+ * It watches dynamically-created dialogs and configuration UI.
+ */
+(() => {
+  'use strict';
+
+  const VERSION = '1.0';
+  const JP = /[\u3040-\u30ff\u3400-\u9fff]/;
+
+  const EXACT = new Map(Object.entries({
+    'メールアシスト 設定':'Mail Assist Settings',
+    'テンプレート':'Templates',
+    '送信履歴':'Send History',
+    '一斉送信・表示':'Bulk Send / Display',
+    '必須':'Required',
+    '件名・本文・宛先と差し込みを定義します。レコード詳細では「メール作成」、一覧では「一斉メール作成」ボタンから利用します。':'Define the subject, body, recipients, and field inserts. Use the "Compose Email" button on record details or "Compose Bulk Email" on the list view.',
+    '20 個を超えると、ワンクリックで「テンプレート保管アプリ」を自動生成し、以降はそちらに保存します（移行後は元に戻せません）。':'If you exceed 20 templates, a Template Storage App can be created with one click and templates will be stored there afterward. This migration cannot be reversed.',
+    'テンプレートは 20 個までこのプラグインに保存できます。':'Up to 20 templates can be stored in this plugin.',
+    'プラグイン内に保存中':'Stored in plugin',
+    '条件あり':'Conditions',
+    '「操作している人」の条件で、このテンプレートを使える人を絞っています':'This template is restricted by conditions based on the current user.',
+    '両方':'Both',
+    '上へ':'Move Up',
+    '下へ':'Move Down',
+    '編集':'Edit',
+    '複製':'Duplicate',
+    '削除':'Delete',
+    '＋ 新規テンプレート':'+ New Template',
+    '（20 個を超えると保管アプリへ移行します）':'(More than 20 templates will be migrated to the storage app)',
+    'テンプレート保管アプリ':'Template Storage App',
+    'テンプレートが 20 個を超えたときに使用する保管アプリです。通常は超過時に自動生成されるため、手動操作は不要です。':'This storage app is used when there are more than 20 templates. It is normally created automatically when needed, so no manual action is required.',
+    '既存の保管アプリを手動指定する場合のみ、アプリ ID を入力してください。':'Enter an App ID only if you want to manually specify an existing storage app.',
+    '状態：':'Status:',
+    '未作成':'Not Created',
+    'テンプレート保管アプリを今すぐ作成':'Create Template Storage App Now',
+    '保管アプリ ID':'Storage App ID',
+    '例：123':'Example: 123',
+    '（既存の保管アプリを手動指定する場合）':'(Only when manually specifying an existing storage app)',
+    '送信履歴（起動ログ）':'Send History (Launch Log)',
+    'メーラー起動後に表示する確認ダイアログで「送信を記録する」を押すと、送信履歴保管アプリに 1 レコード記録します。':'After the mail client opens, click "Record Send" in the confirmation dialog to create one record in the Send History Storage App.',
+    '履歴は「メーラーを起動し、利用者が送信完了を申告した記録（起動ログ）」です。':'History records that the mail client was opened and the user reported that sending was completed (a launch log).',
+    '本プラグインは実送信をメーラーに委ねるため、実際に送信されたか・開封されたかは記録できません。':'Because the mail client performs the actual sending, this plugin cannot verify whether a message was actually sent or opened.',
+    '送信履歴を記録する（ON にすると履歴保管アプリを生成します）':'Record send history (turning this ON creates the history storage app)',
+    'レコード詳細画面に、そのレコードの送信履歴を表示する':'Show this record’s send history on the record detail screen',
+    '履歴そのものが記録されないためです。上のチェックも ON にしてください。':'History is not being recorded. Turn on the option above as well.',
+    '「送信履歴を記録する」が OFF のため、詳細画面には何も表示されません。':'"Record send history" is OFF, so nothing will be shown on the detail screen.',
+    '一斉送信で対象になったレコード':'Records included in a bulk send',
+    '送信履歴保管アプリ':'Send History Storage App',
+    '送信履歴を記録する保管アプリです。「送信履歴を記録する」を ON にすると自動生成されます。':'This app stores send history. It is created automatically when "Record send history" is turned ON.',
+    '作成済み':'Created',
+    '（メールアシスト 送信履歴）':'(Mail Assist Send History)',
+    '送信履歴保管アプリを今すぐ作成':'Create Send History Storage App Now',
+    '一斉送信':'Bulk Send',
+    '一覧画面の絞り込み結果の宛先を BCC に集約し、1 通でメーラーを起動します。URL 長の制限により、1 通あたりの宛先件数で分割します。':'Recipients from the filtered list are combined in BCC and opened as one message. Because of URL-length limits, recipients may be split among multiple messages.',
+    '1 通あたり最大宛先件数':'Maximum Recipients per Message',
+    '件（1〜100）':'recipients (1–100)',
+    '一斉送信の対象上限件数':'Maximum Records for Bulk Send',
+    '件（取得するレコードの安全上限）':'records (safety limit for retrieved records)',
+    'レコードごとに1通の上限件数':'Maximum Records for One Message per Record',
+    '件（テンプレートで「レコードごとに1通」を選んだとき）':'records (when "One message per record" is selected)',
+    '添付ファイルの合計上限':'Total Attachment Size Limit',
+    'MB（下書きファイル方式のとき。超えたら添付せずに知らせます）':'MB (for draft-file mode; if exceeded, files are not attached and a notice is shown)',
+    'メーラーの起動方法':'Mail Client Launch Method',
+    '「メール作成」時に、利用者がメーラー（既定メーラー / Gmail / Outlook 個人・法人 / Yahoo!）を都度選ぶか、管理者が指定したメーラーに固定するかを選べます。':'Choose whether users select a mail client each time they compose an email, or whether the administrator fixes the mail client.',
+    '固定にすると、メーラー選択画面を出さずにそのまま起動します。':'When fixed, the selected mail client opens directly without showing the mail-client selection screen.',
+    '利用者が都度選択する（既定）':'User Selects Each Time (Default)',
+    'メーラーを固定する：':'Fixed Mail Client:',
+    '既定メーラー（Outlook / Thunderbird 等・mailto）':'Default Mail Client (Outlook / Thunderbird, etc. — mailto)',
+    'Outlook（個人・Web）':'Outlook (Personal / Web)',
+    'Outlook（法人・Web）':'Outlook (Work / Web)',
+    'Yahoo! メール（Web）':'Yahoo! Mail (Web)',
+    '送信方法・メーラーごとにできること':'Capabilities by Send Method / Mail Client',
+    '書式つきの本文（表・罫線）と添付ファイルは、メーラーを URL で起動する方式では渡せません':'Formatted body content (tables/borders) and attachments cannot be passed when launching a mail client by URL',
+    '下書きファイル（.eml）を作る':'Create Draft File (.eml)',
+    'できること':'Capability',
+    '既定メーラー':'Default Mail Client',
+    '個人 Web':'Personal Web',
+    '法人 Web':'Work Web',
+    '下書き':'Draft',
+    'ファイル':'File',
+    '件名・本文（プレーンテキスト）':'Subject / Body (Plain Text)',
+    '書式つき本文（表・罫線・文字色）':'Formatted Body (Tables / Borders / Text Color)',
+    '添付ファイル':'Attachments',
+    '一斉：BCC に集約して 1 通':'Bulk: One Message Using BCC',
+    '一斉：宛先が多く複数通に分かれる場合':'Bulk: Multiple Messages When There Are Many Recipients',
+    '一斉：レコードごとに 1 通':'Bulk: One Message per Record',
+    '本文の長さ':'Body Length',
+    '約 1,200 字':'About 1,200 characters',
+    '大きい':'Large',
+    '制限なし':'No Limit',
+    '△＝メーラー側の仕様で一部が反映されないことがあります。':'△ = Some items may not be applied due to mail-client limitations.',
+    '下書きファイル方式は':'Draft-file mode requires',
+    '1 通ずつ確認しながら':'while confirming each message',
+    'Outlook / Thunderbird などパソコンにインストールされたメールソフト':'a desktop mail application such as Outlook or Thunderbird',
+    '既定メーラーへ渡す宛先の区切り記号':'Recipient Separator for the Default Mail Client',
+    '宛先が複数あるとき、':'When there are multiple recipients,',
+    '通常は':'Normally,',
+    '既定メーラー（mailto）':'Default Mail Client (mailto)',
+    'カンマ（標準）':'Comma (Default)',
+    'カンマ（標準・RFC 6068 準拠）':'Comma (Default / RFC 6068)',
+    'セミコロン（Outlook クラシックで宛先が展開されない場合）':'Semicolon (if Outlook Classic does not separate recipients)',
+    'Outlook クラシックは、':'Outlook Classic',
+    '⚠ Outlook クラシック（デスクトップ版）で「宛先が1件にまとまってしまう」場合':'⚠ If Outlook Classic (desktop) combines all recipients into one entry',
+    'ビルドや更新チャネルによって mailto のカンマを区切りとして扱わないことがあります':'Some builds/update channels may not treat commas in mailto links as recipient separators.',
+    '上の設定を':'Change the setting above to',
+    'に変更する':'',
+    'セミコロン':'Semicolon',
+    'または Outlook 側で ――':'Or in Outlook:',
+    '（利用者ごとの設定です）':'(This is a per-user setting)',
+    'ファイル → オプション → メール → 「メッセージの送信」→「宛先の区切り文字にコンマも使用できる」にチェック':'File → Options → Mail → Send messages → enable "Commas can be used to separate multiple message recipients"',
+    'または「新しい Outlook」を使う（カンマ・セミコロンの両方を解釈します）':'Or use New Outlook (it recognizes both commas and semicolons)',
+    'セミコロンは mailto の規格外の区切りで、':'Semicolons are not a standard mailto separator and are',
+    'Mac をお使いの方がいる場合は「カンマ」のままにしてください。':'If any users are on Mac, leave this set to "Comma."',
+    'Outlook クラシック（Windows）の一部ビルド向けの回避策':'Workaround for Some Outlook Classic (Windows) Builds',
+    'ボタンの色':'Button Color',
+    'レコード詳細・一覧に表示するメール作成ボタンの配色です。':'Color of the email buttons shown on record detail and list screens.',
+    'ネイビー':'Navy',
+    'グリーン':'Green',
+    'ブルー':'Blue',
+    'シアン':'Cyan',
+    'ティール':'Teal',
+    'パープル':'Purple',
+    'レッド':'Red',
+    'オレンジ':'Orange',
+    'スレート':'Slate',
+    'ブラック':'Black',
+    'カスタム色':'Custom Color',
+    '詳細画面のボタン設置位置':'Detail Screen Button Position',
+    'レコード詳細画面の「メール作成」ボタンを置く場所を選べます。':'Choose where the "Compose Email" button appears on the record detail screen.',
+    'ヘッダーメニュー（パンくず下）':'Header Menu (Below Breadcrumbs)',
+    '編集・印刷ボタンの並び（右上）':'Edit / Print Button Row (Upper Right)',
+    'ツールバー左端':'Left Side of Toolbar',
+    'ヘッダーメニュー（パンくず下・既定）':'Header Menu (Below Breadcrumbs — Default)',
+    'ツールバー左端（プロセス管理等の左・余白なし）':'Left Side of Toolbar (left of Process Management, no extra spacing)',
+    '一覧画面のボタン設置位置':'List Screen Button Position',
+    '一覧の「一斉メール作成」ボタンを置く場所を選べます。他のプラグインやJSカスタマイズと重ならないよう、3種類から選べます。「＋追加ボタンの左」が既定です。':'Choose where the "Compose Bulk Email" button appears on the list screen. Three positions are available to avoid conflicts with other plugins or JS customizations. "Left of + Add button" is the default.',
+    '＋追加ボタンの左（既定）':'Left of + Add Button (Default)',
+    '集計ボタンの右':'Right of Aggregate Button',
+    '一覧上部の全幅帯':'Full-Width Bar Above List',
+    '帯内の配置':'Position Within Bar',
+    '左':'Left',
+    '中央':'Center',
+    '右':'Right',
+    'キャンセル':'Cancel',
+    '保存':'Save',
+    'KIZUNA Works プラグイン':'KIZUNA Works Plugins',
+    '業務効率化に役立つkintoneプラグインを多数ご用意しています。':'A variety of kintone plugins are available to improve work efficiency.',
+    'プラグイン一覧を見る →':'View Plugin List →',
+    '無料Webツール':'Free Web Tools',
+    '電子印鑑づくり・PDFへの捺印・PDFの結合分割・QRコード作成など、インストールも登録も不要、ブラウザだけで使える無料Webツールを公開中です。':'Free browser-based tools are available for creating electronic seals, stamping PDFs, merging/splitting PDFs, creating QR codes, and more. No installation or registration required.',
+    '無料ツールを見る →':'View Free Tools →',
+    '✨ サポーターライセンス有効':'✨ Supporter License Active',
+    '新プラグイン作成のリクエストや、既存プラグインへの改善要望をお送りいただけます。':'You can submit requests for new plugins or improvements to existing plugins.',
+    '✏ リクエスト・要望フォーム':'✏ Request / Feedback Form',
+    '最新版を入手する →':'Get Latest Version →',
+    'ライセンスの更新はこちら →':'Renew License Here →',
+    'テンプレート編集':'Edit Template',
+    'テンプレ名':'Template Name',
+    '例：請求書送付':'Example: Send Invoice',
+    '対象画面':'Target Screen',
+    '個別（詳細）':'Individual (Detail)',
+    '一斉（一覧）':'Bulk (List)',
+    '宛先(To)':'Recipient (To)',
+    '＋ フィールド挿入':'+ Insert Field',
+    'フィールド名・コードで絞り込み':'Filter by field name or code',
+    '追加の宛先を直接入力（カンマ・セミコロン・改行・スペース区切り）':'Enter additional recipients directly (separate with commas, semicolons, line breaks, or spaces)',
+    '1つのフィールドに複数のアドレスをまとめて入れられます。':'Multiple email addresses can be stored in a single field.',
+    'カンマ・セミコロン・スペース・改行':'Comma / Semicolon / Space / Line Break',
+    'カンマ区切りに統一':'Normalize to Comma-Separated',
+    '追加の CC を直接入力（カンマ・セミコロン・改行・スペース区切り）':'Enter additional CC recipients directly (comma, semicolon, line break, or space separated)',
+    '任意（個別送信で使用）。':'Optional (used for individual sends).',
+    '追加の BCC を直接入力（カンマ・セミコロン・改行・スペース区切り）':'Enter additional BCC recipients directly (comma, semicolon, line break, or space separated)',
+    '任意。':'Optional.',
+    '件名':'Subject',
+    '例：{company} 御中 ご請求の件（{ でフィールド候補）':'Example: Invoice for {company} (type { for field suggestions)',
+    '本文':'Body',
+    '{tantosha} 様 いつもお世話になっております。 （{ を入力するとフィールド候補が出ます）':'Dear {tantosha}, Thank you for your continued support. (Type { to show field suggestions)',
+    '送信方法':'Send Method',
+    'メーラーを起動する（既定）':'Launch Mail Client (Default)',
+    '本文の形式':'Body Format',
+    'プレーンテキスト':'Plain Text',
+    '書式つき（表・罫線・文字色をそのまま）':'Formatted (preserve tables, borders, and text colors)',
+    '書式つき':'Formatted',
+    '元の見た目のまま':'Preserve Original Appearance',
+    '表（リッチエディター内）の書き出し方':'Table Output (Rich Text)',
+    '罫線で桁を揃える':'Align Columns with Borders',
+    '「項目：値」で並べる':'List as "Field: Value"',
+    '罫線は等幅フォントで見たときに桁が揃います。受信側のフォントが等幅でない場合は「項目：値」のほうが崩れません。':'Border-based columns align when viewed in a monospaced font. If the recipient uses a proportional font, "Field: Value" is less likely to break.',
+    '一斉送信（一覧画面）の方式':'Bulk Send Method (List Screen)',
+    '宛先を BCC に集約して 1 通（既定）':'Combine Recipients in BCC — One Message (Default)',
+    'レコードごとに 1 通ずつ作る':'Create One Message per Record',
+    '表示・送信条件（任意）':'Display / Send Conditions (Optional)',
+    'すべて満たす (AND)':'Match All (AND)',
+    'いずれか満たす (OR)':'Match Any (OR)',
+    '＋ 条件を追加':'+ Add Condition',
+    '条件なしなら常に対象です。':'With no conditions, the template always applies.',
+    '詳細画面':'Detail Screen',
+    '紫の線が付いた行（「操作している人」）':'Rows with a purple line ("Current User")',
+    'ボタンを押す人':'the person clicking the button',
+    '保存した時点の組織構成で展開して保存します':'is expanded and saved using the organization structure at the time you save',
+    '対応中,保留':'In Progress,On Hold',
+
+    /* Runtime UI */
+    '一斉メール作成':'Compose Bulk Email',
+    'メール作成':'Compose Email',
+    'メールアシスト':'Mail Assist',
+    '対象レコードを取得しています…':'Retrieving Target Records...',
+    '宛先を解決しています…':'Resolving Recipient...',
+    '重複を除いた':'After removing duplicates,',
+    'の宛先を BCC に集約してメーラーを起動します。':'recipients will be combined in BCC and the mail client will open.',
+    '件名：':'Subject:',
+    'メーラーを選んで起動':'Choose Mail Client and Open',
+    '送信履歴の記録':'Record Send History',
+    'メーラーを起動しました。メールの送信が完了したら、この内容を送信履歴として記録できます。':'The mail client has been opened. After sending the email, you can record this information in the send history.',
+    '（実際の送信・到達は記録されません。これは起動ログです）':'(Actual sending or delivery is not recorded. This is a launch log.)',
+    '記録しない':"Don't Record",
+    '送信を記録する':'Record Send',
+    'メール送信履歴':'Email Send History',
+    '日時':'Date/Time',
+    '種別':'Type',
+    '宛先(To)':'Recipient (To)',
+    'メーラー':'Mail Client',
+    '個別':'Individual',
+    'このレコードの送信履歴はまだありません。':'There is no send history for this record yet.'
+  }));
+
+  const DYNAMIC = [
+    [/^（(\d+) \/ 20 個）$/, '($1 / 20)'],
+    [/^（(\d+) 件）$/, '($1 records)'],
+    [/^(\d+) 件$/, '$1 record(s)'],
+    [/^(\d+) 件（(\d+) 通）$/, '$1 record(s) ($2 message(s))'],
+    [/^対象：(.+) ほか(\d+)件$/, 'Audience: $1 + $2 more'],
+    [/^宛先\(To\)：直接入力 \/ 件名：(.+)$/, 'Recipient (To): Direct Entry / Subject: $1'],
+    [/^✨ サポーターライセンス有効$/, '✨ Supporter License Active'],
+    [/^有効期限:\s*(.+)（残り\s*(\d+)\s*日）$/, 'Expires: $1 ($2 days remaining)'],
+    [/^🆙 新しいバージョン（v(.+)）があります$/, '🆙 A new version (v$1) is available'],
+    [/^🕒 残り\s*(\d+)\s*日でライセンス期限が切れます$/, '🕒 License expires in $1 days'],
+    [/^条件\s*(\d+)\s*\/\s*(\d+)$/, 'Condition $1 / $2']
+  ];
+
+  /* Common condition-editor labels captured in the configuration UI. */
+  const FRAGMENTS = new Map(Object.entries({
+    '操作している人':'Current User',
+    'ユーザー':'User',
+    '組織':'Organization',
+    'グループ':'Group',
+    'アプリ管理権限':'App Management Permission',
+    'フィールド':'Field',
+    '演算子':'Operator',
+    '値':'Value',
+    '一致':'Equals',
+    '一致しない':'Does Not Equal',
+    'いずれかに一致':'Matches Any',
+    'いずれにも一致しない':'Matches None',
+    '含む':'Contains',
+    '含まない':'Does Not Contain',
+    'いずれかを含む':'Contains Any',
+    'いずれも含まない':'Contains None',
+    '空':'Empty',
+    '空でない':'Not Empty',
+    '＞（より大きい）':'> (Greater Than)',
+    '＜（より小さい）':'< (Less Than)',
+    '≧（以上）':'≥ (Greater Than or Equal)',
+    '≦（以下）':'≤ (Less Than or Equal)',
+    '子組織も含める':'Include Child Organizations'
+  }));
+
+  function translateValue(value) {
+    if (!value || !JP.test(value)) return value;
+
+    const trimmed = value.trim();
+
+    if (EXACT.has(trimmed)) {
+      const translated = EXACT.get(trimmed);
+      return value.replace(trimmed, translated);
+    }
+
+    for (const [re, replacement] of DYNAMIC) {
+      if (re.test(trimmed)) {
+        return value.replace(trimmed, trimmed.replace(re, replacement));
+      }
+    }
+
+    if (FRAGMENTS.has(trimmed)) {
+      return value.replace(trimmed, FRAGMENTS.get(trimmed));
+    }
+
+    return value;
+  }
+
+  function translateNode(node) {
+    if (!node) return;
+
+    if (node.nodeType === Node.TEXT_NODE) {
+      const oldValue = node.nodeValue;
+      const newValue = translateValue(oldValue);
+      if (newValue !== oldValue) node.nodeValue = newValue;
+      return;
+    }
+
+    if (node.nodeType !== Node.ELEMENT_NODE &&
+        node.nodeType !== Node.DOCUMENT_FRAGMENT_NODE &&
+        node.nodeType !== Node.DOCUMENT_NODE) return;
+
+    if (node.nodeType === Node.ELEMENT_NODE &&
+        ['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(node.tagName)) return;
+
+    if (node.nodeType === Node.ELEMENT_NODE) {
+      ['title', 'aria-label', 'placeholder', 'alt', 'value'].forEach(attr => {
+        if (!node.hasAttribute?.(attr)) return;
+        const oldValue = node.getAttribute(attr);
+        const newValue = translateValue(oldValue);
+        if (newValue !== oldValue) node.setAttribute(attr, newValue);
+      });
+
+      [...node.childNodes].forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) translateNode(child);
+      });
+    }
+
+    node.querySelectorAll?.('*').forEach(el => {
+      if (['SCRIPT', 'STYLE', 'NOSCRIPT'].includes(el.tagName)) return;
+
+      [...el.childNodes].forEach(child => {
+        if (child.nodeType === Node.TEXT_NODE) translateNode(child);
+      });
+
+      ['title', 'aria-label', 'placeholder', 'alt', 'value'].forEach(attr => {
+        if (!el.hasAttribute?.(attr)) return;
+        const oldValue = el.getAttribute(attr);
+        const newValue = translateValue(oldValue);
+        if (newValue !== oldValue) el.setAttribute(attr, newValue);
+      });
+    });
+  }
+
+  function scan() {
+    translateNode(document);
+  }
+
+  const observer = new MutationObserver(records => {
+    for (const record of records) {
+      if (record.type === 'characterData') {
+        translateNode(record.target);
+        continue;
+      }
+
+      record.addedNodes.forEach(translateNode);
+
+      if (record.type === 'attributes') {
+        translateNode(record.target);
+      }
+    }
+  });
+
+  function start() {
+    scan();
+
+    observer.observe(document.documentElement, {
+      subtree: true,
+      childList: true,
+      characterData: true,
+      attributes: true,
+      attributeFilter: ['title', 'aria-label', 'placeholder', 'alt', 'value']
+    });
+
+    /* Backup sweep for plugin screens that rebuild their DOM. */
+    setInterval(scan, 750);
+
+    console.log(`[KW Mail Assist English Patch] Version ${VERSION} loaded`);
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', start, { once: true });
+  } else {
+    start();
+  }
+})();
+"""
+
+out.write_text(js, encoding="utf-8")
+print(f"Created: {out}")
+print(f"Size: {out.stat().st_size:,} bytes")
