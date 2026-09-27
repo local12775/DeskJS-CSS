@@ -1,8 +1,4 @@
-from pathlib import Path
-
-out = Path("/mnt/data/KW Mail Assist English Patch v1.0.js")
-
-js = r"""/*
+/*
  * KW Mail Assist English Patch
  * Version 1.0
  * Built from live UI captures of KW Mail Assist v1.6.1
@@ -248,7 +244,6 @@ js = r"""/*
     [/^条件\s*(\d+)\s*\/\s*(\d+)$/, 'Condition $1 / $2']
   ];
 
-  /* Common condition-editor labels captured in the configuration UI. */
   const FRAGMENTS = new Map(Object.entries({
     '操作している人':'Current User',
     'ユーザー':'User',
@@ -374,7 +369,6 @@ js = r"""/*
       attributeFilter: ['title', 'aria-label', 'placeholder', 'alt', 'value']
     });
 
-    /* Backup sweep for plugin screens that rebuild their DOM. */
     setInterval(scan, 750);
 
     console.log(`[KW Mail Assist English Patch] Version ${VERSION} loaded`);
@@ -386,8 +380,3 @@ js = r"""/*
     start();
   }
 })();
-"""
-
-out.write_text(js, encoding="utf-8")
-print(f"Created: {out}")
-print(f"Size: {out.stat().st_size:,} bytes")
